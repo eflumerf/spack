@@ -111,6 +111,15 @@ class Gcc(spack.compiler.Compiler):
             return "-std=c++20"
 
     @property
+    def cxx23_flag(self):
+        if self.real_version < Version("11.0"):
+            raise spack.compiler.UnsupportedCompilerFlag(
+                self, "the C++23 standard", "cxx23_flag", "< 11.0"
+            )
+        else:
+            return "-std=c++23"
+
+    @property
     def c99_flag(self):
         if self.real_version < Version("4.5"):
             raise spack.compiler.UnsupportedCompilerFlag(
