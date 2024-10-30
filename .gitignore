@@ -22,6 +22,7 @@ spack-db.*
 # FNAL-specific ignores #
 #########################
 
+var/mpd
 var/spack/extensions
 var/spack/repos/artdaq-spack/
 var/spack/repos/fnal_art/
