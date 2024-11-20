@@ -226,6 +226,8 @@ class Geant4(CMakePackage):
     patch("cxx17_geant4_10_0.patch", level=1, when="@10.4.0 cxxstd=17")
     patch("geant4-10.4.3-cxx17-removed-features.patch", level=1, when="@10.4.3 cxxstd=17")
 
+    patch("cpp20.patch", when="@10.7 cxxstd=20")  # from Fermi buildshims
+
     # See https://bugzilla-geant4.kek.jp/show_bug.cgi?id=2556
     patch("package-cache.patch", level=1, when="@10.7.0:11.1.2^cmake@3.17:")
 
@@ -285,6 +287,8 @@ class Geant4(CMakePackage):
     def flag_handler(self, name, flags):
         spec = self.spec
         if name == "cxxflags":
+            if spec.satisfies("%gcc"):
+                flags.append("-fpermissive")
             if spec.satisfies("%nvhpc"):
                 # error: excessive recursion at instantiation of class
                 # "G4Number<191>" (G4CTCounter.hh)
