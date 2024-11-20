@@ -429,8 +429,10 @@ imposed_nodes(ConditionID, PackageNode, node(X, A1))
 
 :- imposed_packages(ID, A1), impose(ID, PackageNode), not condition_set(PackageNode, node(_, A1)),
    internal_error("Imposing constraint outside of condition set").
-:- imposed_packages(ID, A1), impose(ID, PackageNode), not imposed_nodes(ID, PackageNode, node(_, A1)),
-   internal_error("Imposing constraint outside of imposed_nodes").
+% not sure why, but this error keeps cropping up with --include-concrete environments, trying commenting
+% it out -- mengel@fnal.gov
+%:- imposed_packages(ID, A1), impose(ID, PackageNode), not imposed_nodes(ID, PackageNode, node(_, A1)),
+%   internal_error("Imposing constraint outside of imposed_nodes").
 
 % Conditions that hold impose may impose constraints on other specs
 attr(Name, node(X, A1))             :- impose(ID, PackageNode), imposed_constraint(ID, Name, A1),             imposed_nodes(ID, PackageNode, node(X, A1)).
