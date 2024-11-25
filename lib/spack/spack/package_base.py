@@ -32,7 +32,6 @@ import llnl.util.tty as tty
 from llnl.util.lang import classproperty, memoized
 from llnl.util.link_tree import LinkTree
 
-import spack.build_environment
 import spack.builder
 import spack.compilers
 import spack.config
@@ -50,7 +49,6 @@ import spack.spec
 import spack.store
 import spack.url
 import spack.util.environment
-import spack.util.executable
 import spack.util.path
 import spack.util.web
 from spack.error import InstallError, NoURLError, PackageError
@@ -624,6 +622,7 @@ class PackageBase(WindowsRPath, PackageViewMixin, RedistributionMixin, metaclass
     patches: Dict["spack.spec.Spec", List["spack.patch.Patch"]]
     variants: Dict["spack.spec.Spec", Dict[str, "spack.variant.Variant"]]
     languages: Dict["spack.spec.Spec", Set[str]]
+    splice_specs: Dict["spack.spec.Spec", Tuple["spack.spec.Spec", Union[None, str, List[str]]]]
 
     #: By default, packages are not virtual
     #: Virtual packages override this attribute
