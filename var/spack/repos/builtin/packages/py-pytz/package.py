@@ -15,6 +15,7 @@ class PyPytz(PythonPackage):
 
     license("MIT")
 
+    version("2024.2", sha256="2aa355083c50a0f93fa581709deac0c9ad65cca8a9e9beac660adcbd493c798a")
     version("2023.3", sha256="1d8ce29db189191fb55338ee6d0387d82ab59f3d00eac103412d64e0ebd0c588")
     version("2022.7.1", sha256="01a0681c4b9684a28304615eba55d1ab31ae00bf68ec157ec3708a8182dbbcd0")
     version("2022.2.1", sha256="cea221417204f2d1a2aa03ddae3e867921971d0d76f14d87abb4414415bbdcf5")

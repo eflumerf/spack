@@ -5,6 +5,7 @@
 import sys
 
 import spack.build_systems
+import spack.build_systems.autotools
 from spack.package import *
 
 
@@ -123,6 +124,7 @@ class Libuv(CMakePackage, AutotoolsPackage):
         msg="Build system for Windows in versions older than 1.21 is"
         "broken for versions of MSVC supported by Spack",
     )
+
 
 class AutotoolsBuilder(spack.build_systems.autotools.AutotoolsBuilder):
     @when("@:1.43")
