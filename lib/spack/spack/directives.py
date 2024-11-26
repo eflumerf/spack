@@ -34,12 +34,12 @@ import collections
 import collections.abc
 import os.path
 import re
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Tuple, Union
+from typing import Any, Callable, List, Optional, Tuple, Union
 
-import llnl.util.lang
 import llnl.util.tty.color
 
 import spack.deptypes as dt
+import spack.package_base
 import spack.patch
 import spack.spec
 import spack.util.crypto
@@ -56,14 +56,10 @@ from spack.version import (
     VersionLookupError,
 )
 
-if TYPE_CHECKING:
-    import spack.package_base
-
 __all__ = [
     "DirectiveError",
-    "DirectiveMeta",
-    "DisableRedistribute",
     "version",
+    "conditional",
     "conflicts",
     "depends_on",
     "extends",
@@ -76,6 +72,7 @@ __all__ = [
     "build_system",
     "requires",
     "redistribute",
+    "can_splice",
 ]
 
 _patch_order_index = 0
@@ -83,15 +80,15 @@ _patch_order_index = 0
 
 SpecType = str
 DepType = Union[Tuple[str, ...], str]
-WhenType = Optional[Union["spack.spec.Spec", str, bool]]
-Patcher = Callable[[Union["spack.package_base.PackageBase", Dependency]], None]
+WhenType = Optional[Union[spack.spec.Spec, str, bool]]
+Patcher = Callable[[Union[spack.package_base.PackageBase, Dependency]], None]
 PatchesType = Optional[Union[Patcher, str, List[Union[Patcher, str]]]]
 
 
 SUPPORTED_LANGUAGES = ("fortran", "cxx", "c")
 
 
-def _make_when_spec(value: WhenType) -> Optional["spack.spec.Spec"]:
+def _make_when_spec(value: WhenType) -> Optional[spack.spec.Spec]:
     """Create a ``Spec`` that indicates when a directive should be applied.
 
     Directives with ``when`` specs, e.g.:
@@ -136,7 +133,7 @@ def _make_when_spec(value: WhenType) -> Optional["spack.spec.Spec"]:
     return spack.spec.Spec(value)
 
 
-SubmoduleCallback = Callable[["spack.package_base.PackageBase"], Union[str, List[str], bool]]
+SubmoduleCallback = Callable[[spack.package_base.PackageBase], Union[str, List[str], bool]]
 directive = DirectiveMeta.directive
 
 
@@ -252,8 +249,8 @@ def _execute_version(pkg, ver, **kwargs):
 
 
 def _depends_on(
-    pkg: "spack.package_base.PackageBase",
-    spec: "spack.spec.Spec",
+    pkg: spack.package_base.PackageBase,
+    spec: spack.spec.Spec,
     *,
     when: WhenType = None,
     type: DepType = dt.DEFAULT_TYPES,
@@ -332,7 +329,7 @@ def conflicts(conflict_spec: SpecType, when: WhenType = None, msg: Optional[str]
         msg (str): optional user defined message
     """
 
-    def _execute_conflicts(pkg: "spack.package_base.PackageBase"):
+    def _execute_conflicts(pkg: spack.package_base.PackageBase):
         # If when is not specified the conflict always holds
         when_spec = _make_when_spec(when)
         if not when_spec:
@@ -352,7 +349,6 @@ def depends_on(
     when: WhenType = None,
     type: DepType = dt.DEFAULT_TYPES,
     patches: PatchesType = None,
-    version_translator=None,
 ):
     """Creates a dict of deps with specs defining when they apply.
 
@@ -363,12 +359,6 @@ def depends_on(
         type: str or tuple of legal Spack deptypes
         patches: single result of ``patch()`` directive, a
             ``str`` to be passed to ``patch``, or a list of these
-        version_translator (function): function to generate a version-ish for spec
-            from a parent version. If provided, this function will be called for
-            each version defined for pkg, and any non-vacuous result will be used to
-            add a dependency with that version as an extra constraint on spec.
-            Examples of suitable functions: ``spack.version.Version`` (NOP) or
-            ``lambda v: v.up_to(2)`` (minor version match)
 
     This directive is to be used inside a Package definition to declare
     that the package requires other packages to be built first.
@@ -380,39 +370,10 @@ def depends_on(
         assert type == "build", "languages must be of 'build' type"
         return _language(lang_spec_str=spec, when=when)
 
-    def _execute_depends_on(pkg: "spack.package_base.PackageBase"):
-        executed = False
-        if version_translator:
-            # Produce a different dependency for every package version
-            # for which version_translator returns an answer that alters
-            # the spec.
-            for pkg_version in pkg.versions:
-                version_ish = version_translator(pkg_version)
-                if version_ish is not None:
-                    constrained_spec = spack.spec.Spec(dep_spec)
-                    if constrained_spec.constrain(f"@{version_ish}"):
-                        _depends_on(
-                            pkg,
-                            constrained_spec,
-                            when=f"@{pkg_version} {when}" if when else f"@{pkg_version}",
-                            type=type,
-                            patches=patches,
-                        )
-                        executed = True
-
-        # If we haven't already produced one or more version-specific
-        # dependencies, do the basic dependency for spec.
-        if not executed:
-            _depends_on(pkg, dep_spec, when=when, type=type, patches=patches)
+    def _execute_depends_on(pkg: spack.package_base.PackageBase):
+        _depends_on(pkg, dep_spec, when=when, type=type, patches=patches)
 
     return _execute_depends_on
-
-
-#: Store whether a given Spec source/binary should not be redistributed.
-class DisableRedistribute:
-    def __init__(self, source, binary):
-        self.source = source
-        self.binary = binary
 
 
 @directive("disable_redistribute")
@@ -431,7 +392,7 @@ def redistribute(source=None, binary=None, when: WhenType = None):
 
 
 def _execute_redistribute(
-    pkg: "spack.package_base.PackageBase", source=None, binary=None, when: WhenType = None
+    pkg: spack.package_base.PackageBase, source=None, binary=None, when: WhenType = None
 ):
     if source is None and binary is None:
         return
@@ -461,7 +422,7 @@ def _execute_redistribute(
         if not binary:
             disable.binary = True
     else:
-        pkg.disable_redistribute[when_spec] = DisableRedistribute(
+        pkg.disable_redistribute[when_spec] = spack.package_base.DisableRedistribute(
             source=not source, binary=not binary
         )
 
@@ -507,7 +468,7 @@ def provides(*specs: SpecType, when: WhenType = None):
         when: condition when this provides clause needs to be considered
     """
 
-    def _execute_provides(pkg: "spack.package_base.PackageBase"):
+    def _execute_provides(pkg: spack.package_base.PackageBase):
         import spack.parser  # Avoid circular dependency
 
         when_spec = _make_when_spec(when)
@@ -531,6 +492,43 @@ def provides(*specs: SpecType, when: WhenType = None):
             provided_set.add(provided_spec)
 
     return _execute_provides
+
+
+@directive("splice_specs")
+def can_splice(
+    target: SpecType, *, when: SpecType, match_variants: Union[None, str, List[str]] = None
+):
+    """Packages can declare whether they are ABI-compatible with another package
+    and thus can be spliced into concrete versions of that package.
+
+    Args:
+        target: The spec that the current package is ABI-compatible with.
+
+        when: An anonymous spec constraining current package for when it is
+            ABI-compatible with target.
+
+        match_variants: A list of variants that must match
+            between target spec and current package, with special value '*'
+            which matches all variants. Example: a variant is defined on both
+            packages called json, and they are ABI-compatible whenever they agree on
+            the json variant (regardless of whether it is turned on or off).  Note
+            that this cannot be applied to multi-valued variants and multi-valued
+            variants will be skipped by '*'.
+    """
+
+    def _execute_can_splice(pkg: spack.package_base.PackageBase):
+        when_spec = _make_when_spec(when)
+        if isinstance(match_variants, str) and match_variants != "*":
+            raise ValueError(
+                "* is the only valid string for match_variants "
+                "if looking to provide a single variant, use "
+                f"[{match_variants}] instead"
+            )
+        if when_spec is None:
+            return
+        pkg.splice_specs[when_spec] = (spack.spec.Spec(target), match_variants)
+
+    return _execute_can_splice
 
 
 @directive("patches")
@@ -559,7 +557,7 @@ def patch(
             compressed URL patches)
     """
 
-    def _execute_patch(pkg_or_dep: Union["spack.package_base.PackageBase", Dependency]):
+    def _execute_patch(pkg_or_dep: Union[spack.package_base.PackageBase, Dependency]):
         pkg = pkg_or_dep
         if isinstance(pkg, Dependency):
             pkg = pkg.pkg
@@ -604,6 +602,15 @@ def patch(
         cur_patches.append(patch)
 
     return _execute_patch
+
+
+def conditional(*values: List[Any], when: Optional[WhenType] = None):
+    """Conditional values that can be used in variant declarations."""
+    # _make_when_spec returns None when the condition is statically false.
+    when = _make_when_spec(when)
+    return spack.variant.ConditionalVariantValues(
+        spack.variant.ConditionalValue(x, when=when) for x in values
+    )
 
 
 @directive("variants")
@@ -874,7 +881,7 @@ def requires(*requirement_specs: str, policy="one_of", when=None, msg=None):
         msg: optional user defined message
     """
 
-    def _execute_requires(pkg: "spack.package_base.PackageBase"):
+    def _execute_requires(pkg: spack.package_base.PackageBase):
         if policy not in ("one_of", "any_of"):
             err_msg = (
                 f"the 'policy' argument of the 'requires' directive in {pkg.name} is set "
@@ -899,7 +906,7 @@ def requires(*requirement_specs: str, policy="one_of", when=None, msg=None):
 def _language(lang_spec_str: str, *, when: Optional[Union[str, bool]] = None):
     """Temporary implementation of language virtuals, until compilers are proper dependencies."""
 
-    def _execute_languages(pkg: "spack.package_base.PackageBase"):
+    def _execute_languages(pkg: spack.package_base.PackageBase):
         when_spec = _make_when_spec(when)
         if not when_spec:
             return

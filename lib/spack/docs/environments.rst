@@ -673,6 +673,9 @@ them to the environment.
 Environments can include files or URLs. File paths can be relative or
 absolute. URLs include the path to the text for individual files or
 can be the path to a directory containing configuration files.
+Spack supports ``file``, ``http``, ``https`` and ``ftp`` protocols (or
+schemes). Spack-specific, environment and user path variables may be
+used in these paths. See :ref:`config-file-variables` for more information.
 
 ^^^^^^^^^^^^^^^^^^^^^^^^
 Configuration precedence
@@ -1039,7 +1042,7 @@ file snippet we define a view named ``mpis``, rooted at
 ``/path/to/view`` in which all projections use the package name,
 version, and compiler name to determine the path for a given
 package. This view selects all packages that depend on MPI, and
-excludes those built with the PGI compiler at version 18.5.
+excludes those built with the GCC compiler at version 18.5.
 The root specs with their (transitive) link and run type dependencies
 will be put in the view due to the  ``link: all`` option,
 and the files in the view will be symlinks to the spack install
@@ -1053,7 +1056,7 @@ directories.
        mpis:
          root: /path/to/view
          select: [^mpi]
-         exclude: ['%pgi@18.5']
+         exclude: ['%gcc@18.5']
          projections:
            all: '{name}/{version}-{compiler.name}'
          link: all
