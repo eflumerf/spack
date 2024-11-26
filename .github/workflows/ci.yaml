@@ -4,11 +4,13 @@ on:
   push:
     branches:
       - fnal-develop
-      - v*.fermi
+      - 'v*.fermi'
+      - 'v*-fermi'
   pull_request:
     branches:
       - fnal-develop
-      - v*.fermi
+      - 'v*.fermi'
+      - 'v*-fermi'
 
 concurrency:
   group: ci-${{github.ref}}-${{github.event.pull_request.number || github.run_number}}
