@@ -53,7 +53,7 @@ jobs:
         . .github/workflows/bin/setup_git.sh
     - name: Run style tests
       run: |
-          share/spack/qa/run-style-tests -s import
+          share/spack/qa/run-style-tests
   audit:
     uses: ./.github/workflows/audit.yaml
     secrets: inherit
